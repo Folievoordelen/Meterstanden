@@ -1,0 +1,921 @@
+<!DOCTYPE html>
+<html lang="nl">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>MeterScan Pro</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
+<style>
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body { font-family: Arial, sans-serif; background: #0f1117; color: #e8eaf0; max-width: 480px; margin: 0 auto; min-height: 100vh; }
+
+.header { background: #1a1d27; border-bottom: 1px solid #2a2f45; padding: 16px; position: sticky; top: 0; z-index: 100; }
+.logo { font-size: 20px; font-weight: 700; color: #00e5a0; margin-bottom: 12px; }
+.logo span { color: #e8eaf0; }
+.tabs { display: flex; background: #22263a; border-radius: 10px; padding: 4px; gap: 4px; }
+.tab { flex: 1; padding: 9px 4px; border: none; background: transparent; color: #6b7280; font-size: 12px; border-radius: 7px; cursor: pointer; }
+.tab.active { background: #1a1d27; color: #00e5a0; border: 1px solid #2a2f45; }
+
+.page { display: none; padding: 16px; }
+.page.active { display: block; }
+.lbl { font-size: 11px; color: #6b7280; text-transform: uppercase; letter-spacing: 1px; margin: 0 0 10px; }
+
+select, input[type=text] { width: 100%; padding: 13px 14px; background: #1a1d27; border: 1px solid #2a2f45; border-radius: 10px; color: #e8eaf0; font-size: 15px; margin-bottom: 14px; }
+select { appearance: none; background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' fill='%236b7280' viewBox='0 0 16 16'%3E%3Cpath d='M7.247 11.14L2.451 5.658C1.885 5.013 2.345 4 3.204 4h9.592a1 1 0 0 1 .753 1.659l-4.796 5.48a1 1 0 0 1-1.506 0z'/%3E%3C/svg%3E"); background-repeat: no-repeat; background-position: right 14px center; }
+
+.meter-btns { display: grid; grid-template-columns: repeat(3,1fr); gap: 10px; margin-bottom: 14px; }
+.mbtn { padding: 14px 8px; border: 2px solid #2a2f45; background: #1a1d27; color: #6b7280; border-radius: 12px; cursor: pointer; font-size: 13px; display: flex; flex-direction: column; align-items: center; gap: 6px; }
+.mbtn .ico { font-size: 24px; }
+.mbtn.se { border-color: #ffd700; color: #ffd700; background: rgba(255,215,0,0.08); }
+.mbtn.sg { border-color: #ff6b35; color: #ff6b35; background: rgba(255,107,53,0.08); }
+.mbtn.sw { border-color: #00b4d8; color: #00b4d8; background: rgba(0,180,216,0.08); }
+.mbtn.sk { border-color: #a78bfa; color: #a78bfa; background: rgba(167,139,250,0.08); }
+
+.foto-label { display: block; width: 100%; border: 2px dashed #2a2f45; border-radius: 12px; padding: 28px 16px; text-align: center; cursor: pointer; margin-bottom: 14px; background: #1a1d27; -webkit-tap-highlight-color: transparent; }
+.foto-label .fi { font-size: 32px; margin-bottom: 8px; }
+.foto-label .ft { color: #00e5a0; font-weight: 700; font-size: 15px; margin-bottom: 4px; }
+.foto-label .fs { color: #6b7280; font-size: 13px; }
+.foto-label img { max-width: 100%; max-height: 200px; border-radius: 8px; object-fit: cover; }
+
+.btn-p { width: 100%; padding: 15px; background: #00e5a0; border: none; border-radius: 12px; color: #0f1117; font-size: 16px; font-weight: 700; cursor: pointer; margin-bottom: 12px; }
+.btn-p:disabled { opacity: 0.4; }
+.btn-s { width: 100%; padding: 14px; background: #1a1d27; border: 1px solid #00e5a0; border-radius: 12px; color: #00e5a0; font-size: 15px; font-weight: 600; cursor: pointer; margin-bottom: 12px; }
+
+.res-box { background: #1a1d27; border: 1px solid #2a2f45; border-radius: 12px; padding: 16px; margin-bottom: 14px; display: none; }
+.res-box.show { display: block; }
+.res-lbl { font-size: 11px; color: #6b7280; text-transform: uppercase; letter-spacing: 1px; margin-bottom: 6px; }
+.res-val { font-size: 34px; font-weight: 700; color: #00e5a0; font-family: monospace; }
+.res-note { font-size: 12px; color: #6b7280; margin-top: 8px; background: #22263a; padding: 8px 10px; border-radius: 6px; }
+
+input.stand { font-size: 22px; text-align: center; font-family: monospace; }
+
+.row-in { display: flex; gap: 10px; margin-bottom: 14px; }
+.row-in input { margin-bottom: 0; flex: 1; }
+.btn-add { padding: 13px 18px; background: #00e5a0; border: none; border-radius: 10px; color: #0f1117; font-size: 20px; font-weight: 700; cursor: pointer; }
+
+.imp-label { display: block; width: 100%; border: 2px dashed #0099ff; border-radius: 12px; padding: 20px 16px; text-align: center; cursor: pointer; margin-bottom: 8px; background: rgba(0,153,255,0.05); -webkit-tap-highlight-color: transparent; }
+.imp-label .ii { font-size: 28px; margin-bottom: 6px; }
+.imp-label .it { color: #0099ff; font-weight: 700; font-size: 15px; margin-bottom: 3px; }
+.imp-label .is { color: #6b7280; font-size: 12px; }
+
+.addr-item { background: #1a1d27; border: 1px solid #2a2f45; border-radius: 10px; padding: 13px 14px; display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px; }
+.addr-name { font-size: 14px; font-weight: 500; }
+.addr-cnt { font-size: 12px; color: #6b7280; margin-top: 2px; }
+.btn-del { background: none; border: 1px solid #2a2f45; border-radius: 7px; color: #6b7280; padding: 6px 10px; cursor: pointer; }
+
+.r-card { background: #1a1d27; border: 1px solid #2a2f45; border-radius: 12px; padding: 14px; margin-bottom: 10px; }
+.r-head { display: flex; justify-content: space-between; margin-bottom: 8px; }
+.r-addr { font-size: 14px; font-weight: 600; }
+.r-date { font-size: 12px; color: #6b7280; }
+.r-tag { font-family: monospace; font-size: 12px; padding: 4px 10px; border-radius: 100px; font-weight: 700; display: inline-block; margin-bottom: 6px; }
+.te { background: rgba(255,215,0,0.12); color: #ffd700; }
+.tg { background: rgba(255,107,53,0.12); color: #ff6b35; }
+.tw { background: rgba(0,180,216,0.12); color: #00b4d8; }
+.tk { background: rgba(167,139,250,0.12); color: #a78bfa; }
+.r-foto { width: 100%; max-height: 140px; object-fit: cover; border-radius: 8px; margin-top: 8px; cursor: pointer; display: block; }
+
+.stats { display: grid; grid-template-columns: repeat(3,1fr); gap: 10px; margin-bottom: 16px; }
+.stat { background: #1a1d27; border: 1px solid #2a2f45; border-radius: 10px; padding: 14px; text-align: center; }
+.sn { font-size: 26px; font-weight: 700; color: #00e5a0; font-family: monospace; }
+.sl { font-size: 11px; color: #6b7280; margin-top: 3px; }
+
+.card { background: #1a1d27; border: 1px solid #2a2f45; border-radius: 12px; padding: 16px; margin-bottom: 12px; }
+.ct { font-size: 15px; font-weight: 600; margin-bottom: 4px; }
+.cd { font-size: 13px; color: #6b7280; margin-bottom: 14px; }
+.btn-g { width:100%;padding:14px;background:#217346;color:white;border:none;border-radius:12px;font-size:15px;font-weight:600;cursor:pointer;margin-bottom:10px; }
+.btn-v { width:100%;padding:14px;background:#7c3aed;color:white;border:none;border-radius:12px;font-size:15px;font-weight:600;cursor:pointer;margin-bottom:10px; }
+.btn-b { width:100%;padding:14px;background:#0369a1;color:white;border:none;border-radius:12px;font-size:15px;font-weight:600;cursor:pointer;margin-bottom:10px; }
+.btn-d { width:100%;padding:14px;background:#22263a;color:#e8eaf0;border:1px solid #2a2f45;border-radius:12px;font-size:15px;cursor:pointer;margin-bottom:10px; }
+
+.msg { font-size: 13px; padding: 10px 12px; border-radius: 8px; background: #22263a; color: #6b7280; margin-bottom: 12px; }
+.msg.ok { color: #00e5a0; }
+.msg.err { color: #ff6b35; }
+.empty { text-align: center; padding: 40px 16px; color: #6b7280; }
+.ei { font-size: 36px; margin-bottom: 10px; }
+.spinner { display: inline-block; width: 16px; height: 16px; border: 2px solid rgba(15,17,23,0.3); border-top-color: #0f1117; border-radius: 50%; animation: spin 0.7s linear infinite; vertical-align: middle; margin-right: 6px; }
+@keyframes spin { to { transform: rotate(360deg); } }
+.toast { position: fixed; bottom: 20px; left: 50%; transform: translateX(-50%) translateY(80px); background: #00e5a0; color: #0f1117; padding: 11px 22px; border-radius: 100px; font-weight: 600; font-size: 14px; z-index: 999; transition: transform 0.3s; white-space: nowrap; pointer-events: none; }
+.toast.show { transform: translateX(-50%) translateY(0); }
+</style>
+</head>
+<body>
+
+<div class="header">
+  <div class="logo">Meter<span>Scan</span> Pro</div>
+  <div class="tabs">
+    <button class="tab active" onclick="showPage('scan',this)">📷 Scan</button>
+    <button class="tab" onclick="showPage('adressen',this)">📍 Adressen</button>
+    <button class="tab" onclick="showPage('historie',this)">📋 Historie</button>
+    <button class="tab" onclick="showPage('export',this)">⬇️ Export</button>
+  </div>
+</div>
+
+<!-- SCAN -->
+<div id="page-scan" class="page active">
+  <p class="lbl">Stap 1 — Adres</p>
+  <select id="scanAdres" onchange="checkKlaar()"><option value="">— Kies een adres —</option></select>
+
+  <p class="lbl">Stap 2 — Metertype</p>
+  <div class="meter-btns" style="grid-template-columns:repeat(4,1fr);">
+    <button class="mbtn" onclick="kiesMeter('elektriciteit',this)"><span class="ico">⚡</span>Elektra</button>
+    <button class="mbtn" onclick="kiesMeter('gas',this)"><span class="ico">🔥</span>Gas</button>
+    <button class="mbtn" onclick="kiesMeter('water',this)"><span class="ico">💧</span>Water</button>
+    <button class="mbtn" onclick="kiesMeter('kast',this)"><span class="ico">🔌</span>Kast</button>
+  </div>
+
+  <p class="lbl">Stap 3 — Foto</p>
+  <div id="fotoZone" style="margin-bottom:14px;">
+    <div id="fotoPlaceholder" style="border:2px dashed #2a2f45;border-radius:12px;padding:20px;text-align:center;background:#1a1d27;">
+      <div style="font-size:30px;margin-bottom:8px;">📷</div>
+      <div style="color:#00e5a0;font-weight:700;font-size:15px;margin-bottom:12px;">Foto toevoegen</div>
+      <div style="display:flex;gap:10px;">
+        <label style="flex:1;padding:12px;background:#00e5a0;border-radius:10px;color:#0f1117;font-weight:700;font-size:14px;text-align:center;cursor:pointer;">
+          📷 Camera
+          <input type="file" id="fotoInput" accept="image/*" capture="environment" style="display:none" onchange="handleFoto(event)">
+        </label>
+        <label style="flex:1;padding:12px;background:#22263a;border:1px solid #2a2f45;border-radius:10px;color:#e8eaf0;font-weight:700;font-size:14px;text-align:center;cursor:pointer;">
+          🖼️ Uploaden
+          <input type="file" id="fotoUpload" accept="image/*" style="display:none" onchange="handleFoto(event)">
+        </label>
+      </div>
+    </div>
+    <div id="fotoPreviewZone" style="display:none;position:relative;">
+      <img id="fotoPreview" style="width:100%;max-height:220px;object-fit:contain;border-radius:12px;display:block;background:#000;" alt="">
+      <div style="display:flex;gap:10px;margin-top:10px;flex-wrap:wrap;">
+        <button onclick="startCrop()" style="flex:1;padding:11px;background:#f59e0b;border:none;border-radius:10px;color:#0f1117;font-size:13px;font-weight:600;cursor:pointer;">✂️ Uitsnijden</button>
+        <button onclick="roteerFoto()" style="flex:1;padding:11px;background:#6366f1;border:none;border-radius:10px;color:white;font-size:13px;font-weight:600;cursor:pointer;">🔄 Draaien</button>
+        <label style="flex:1;padding:11px;background:#22263a;border:1px solid #2a2f45;border-radius:10px;color:#e8eaf0;font-size:13px;font-weight:600;text-align:center;cursor:pointer;">
+          📷 Nieuwe foto
+          <input type="file" id="fotoNieuw" accept="image/*" capture="environment" style="display:none" onchange="handleFoto(event)">
+        </label>
+        <label style="flex:1;padding:11px;background:#22263a;border:1px solid #2a2f45;border-radius:10px;color:#e8eaf0;font-size:13px;font-weight:600;text-align:center;cursor:pointer;">
+          🖼️ Andere foto
+          <input type="file" id="fotoAnder" accept="image/*" style="display:none" onchange="handleFoto(event)">
+        </label>
+      </div>
+    </div>
+
+    <!-- CROP OVERLAY -->
+    <div id="cropOverlay" style="display:none;position:fixed;inset:0;background:#000;z-index:999;flex-direction:column;">
+      <div style="padding:12px 16px;display:flex;justify-content:space-between;align-items:center;background:#111;flex-shrink:0;">
+        <span style="color:#aaa;font-size:13px;">Sleep het groene kader</span>
+        <div style="display:flex;gap:8px;">
+          <button onclick="bevestigCrop()" style="padding:10px 18px;background:#00e5a0;border:none;border-radius:8px;color:#0f1117;font-weight:700;font-size:14px;cursor:pointer;">✅ Gebruik</button>
+          <button onclick="annuleerCrop()" style="padding:10px 14px;background:#333;border:none;border-radius:8px;color:#fff;font-size:14px;cursor:pointer;">✖️</button>
+        </div>
+      </div>
+      <div id="cropContainer" style="flex:1;position:relative;overflow:hidden;display:flex;align-items:center;justify-content:center;background:#000;">
+        <img id="cropImg" style="max-width:100%;max-height:100%;display:block;user-select:none;-webkit-user-drag:none;" alt="">
+        <div id="cropTop"    style="position:absolute;left:0;right:0;top:0;background:rgba(0,0,0,0.6);pointer-events:none;"></div>
+        <div id="cropBottom" style="position:absolute;left:0;right:0;bottom:0;background:rgba(0,0,0,0.6);pointer-events:none;"></div>
+        <div id="cropLeft"   style="position:absolute;top:0;bottom:0;left:0;background:rgba(0,0,0,0.6);pointer-events:none;"></div>
+        <div id="cropRight"  style="position:absolute;top:0;bottom:0;right:0;background:rgba(0,0,0,0.6);pointer-events:none;"></div>
+        <div id="cropFrame" style="position:absolute;border:3px solid #00e5a0;cursor:move;touch-action:none;">
+          <div class="ch" id="ch-tl" style="position:absolute;width:28px;height:28px;top:-4px;left:-4px;border-top:4px solid #00e5a0;border-left:4px solid #00e5a0;cursor:nw-resize;touch-action:none;"></div>
+          <div class="ch" id="ch-tr" style="position:absolute;width:28px;height:28px;top:-4px;right:-4px;border-top:4px solid #00e5a0;border-right:4px solid #00e5a0;cursor:ne-resize;touch-action:none;"></div>
+          <div class="ch" id="ch-bl" style="position:absolute;width:28px;height:28px;bottom:-4px;left:-4px;border-bottom:4px solid #00e5a0;border-left:4px solid #00e5a0;cursor:sw-resize;touch-action:none;"></div>
+          <div class="ch" id="ch-br" style="position:absolute;width:28px;height:28px;bottom:-4px;right:-4px;border-bottom:4px solid #00e5a0;border-right:4px solid #00e5a0;cursor:se-resize;touch-action:none;"></div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <button class="btn-p" id="aiBtn" onclick="leesUit()" disabled>🤖 Lees meterstand uit</button>
+
+  <div class="res-box" id="resBox">
+    <div class="res-lbl">Uitgelezen meterstand</div>
+    <div class="res-val" id="resVal">—</div>
+    <div class="res-note" id="resNote"></div>
+  </div>
+
+  <p class="lbl" id="standLabel">Controleer of pas aan</p>
+  <input type="text" class="stand" id="standInput" placeholder="bijv. 5910" inputmode="numeric">
+  <div id="kastNrZone" style="display:none;margin-bottom:14px;">
+    <p class="lbl">Kastnummer / omschrijving</p>
+    <input type="text" id="kastNrInput" placeholder="bijv. K12 of Kast Berging" style="width:100%;padding:13px 14px;background:#1a1d27;border:1px solid #a78bfa;border-radius:10px;color:#e8eaf0;font-size:15px;">
+  </div>
+  <p class="lbl">Notitie <span style="color:#6b7280;font-size:10px;">(optioneel)</span></p>
+  <textarea id="notitieInput" placeholder="bijv. meter moeilijk leesbaar, afsluiter defect..." style="width:100%;padding:13px 14px;background:#1a1d27;border:1px solid #2a2f45;border-radius:10px;color:#e8eaf0;font-size:14px;resize:none;height:80px;font-family:Arial,sans-serif;margin-bottom:14px;"></textarea>
+  <button class="btn-s" onclick="slaOp()">✅ Opslaan</button>
+</div>
+
+<!-- ADRESSEN -->
+<div id="page-adressen" class="page">
+  <p class="lbl">Handmatig toevoegen</p>
+  <div class="row-in">
+    <input type="text" id="nieuwAdres" placeholder="Straatnaam 1, Plaats" onkeydown="if(event.key==='Enter')voegToe()">
+    <button class="btn-add" onclick="voegToe()">+</button>
+  </div>
+
+  <p class="lbl">Importeren uit bestand</p>
+  <label class="imp-label" id="impLabel" for="impInput">
+    <div class="ii">📂</div>
+    <div class="it">Tik hier om een bestand te kiezen</div>
+    <div class="is">Excel (.xlsx) · CSV · Tekstlijst (.txt)</div>
+  </label>
+  <input type="file" id="impInput" accept=".xlsx,.csv,.txt" style="display:none" onchange="importeer(event)">
+  <div class="msg" id="impMsg" style="display:none"></div>
+
+  <p class="lbl" style="margin-top:6px">Adressenlijst</p>
+  <div id="adresLijst"></div>
+</div>
+
+<!-- HISTORIE -->
+<div id="page-historie" class="page">
+  <p class="lbl">Opgeslagen meterstanden</p>
+  <div id="historieLijst"></div>
+</div>
+
+<!-- EXPORT -->
+<div id="page-export" class="page">
+  <p class="lbl">Overzicht</p>
+  <div class="stats">
+    <div class="stat"><div class="sn" id="sA">0</div><div class="sl">Adressen</div></div>
+    <div class="stat"><div class="sn" id="sM">0</div><div class="sl">Metingen</div></div>
+    <div class="stat"><div class="sn" id="sV">0</div><div class="sl">Vandaag</div></div>
+  </div>
+  <div class="card">
+    <div class="ct">📦 ZIP — Excel + foto's</div>
+    <div class="cd">Excel met alle meterstanden + losse map met foto's. Bestandsnaam staat in Excel.</div>
+    <button class="btn-v" onclick="exportZip()">⬇️ Download ZIP</button>
+  </div>
+  <div class="card">
+    <div class="ct">📄 HTML/PDF rapport</div>
+    <div class="cd">Afdrukbaar rapport met foto-miniaturen naast de meterstanden.</div>
+    <button class="btn-b" onclick="exportHTML()">📄 Open rapport</button>
+  </div>
+  <div class="card">
+    <div class="ct">📊 Alleen Excel / CSV</div>
+    <div class="cd">Snel overzicht zonder foto's.</div>
+    <button class="btn-g" onclick="exportExcel()">⬇️ Excel (.xlsx)</button>
+    <button class="btn-d" onclick="exportCSV()">⬇️ CSV</button>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+const SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbwc8nwy5sqwHbjLVYqNrzp9ETnevLfWyurYKrDcwpsBbVTcZioKKseK9z2lfq13RdDR/exec';
+const CACHE_KEY_A = 'mscan_adressen';
+const CACHE_KEY_M = 'mscan_metingen';
+
+let adressen = [];
+let metingen = [];
+let selMeter = null;
+let fotoB64 = null;
+let fotoMediaType = 'image/jpeg';
+
+function laadCache() {
+  try {
+    const a = localStorage.getItem(CACHE_KEY_A);
+    const m = localStorage.getItem(CACHE_KEY_M);
+    if (a) adressen = JSON.parse(a);
+    if (m) metingen = JSON.parse(m);
+    return !!(a || m);
+  } catch(e) { return false; }
+}
+function slaCache() {
+  try {
+    localStorage.setItem(CACHE_KEY_A, JSON.stringify(adressen));
+    localStorage.setItem(CACHE_KEY_M, JSON.stringify(metingen));
+  } catch(e) {}
+}
+
+function stripDecimals(stand) {
+  return String(stand).replace(/[.,]\d+$/, '').trim();
+}
+
+async function apiCall(actie, extra = {}, retries = 2) {
+  for (let i = 0; i <= retries; i++) {
+    try {
+      const ctrl = new AbortController();
+      const tid = setTimeout(() => ctrl.abort(), 15000);
+      const resp = await fetch(SCRIPT_URL, {
+        method: 'POST',
+        body: JSON.stringify({ actie, ...extra }),
+        signal: ctrl.signal
+      });
+      clearTimeout(tid);
+      return await resp.json();
+    } catch(e) {
+      if (i === retries) throw e;
+      await new Promise(r => setTimeout(r, 1500 * (i + 1)));
+    }
+  }
+}
+
+async function laadData() {
+  const hadCache = laadCache();
+  if (hadCache) {
+    renderScanSelect();
+    toast('📦 Cache geladen — vernieuwen…');
+  } else {
+    toast('⏳ Data laden…');
+  }
+  try {
+    const [a, m] = await Promise.all([
+      apiCall('getAdressen'),
+      apiCall('getMetingen')
+    ]);
+    adressen = Array.isArray(a) ? a : [];
+    metingen = Array.isArray(m) ? m : [];
+    slaCache();
+    renderScanSelect();
+    toast('✅ Data bijgewerkt!');
+  } catch(e) {
+    toast(hadCache ? '⚠️ Offline — cache gebruikt' : '⚠️ Geen data beschikbaar');
+  }
+}
+
+function showPage(n, el) {
+  document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
+  document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+  document.getElementById('page-'+n).classList.add('active');
+  if (el) el.classList.add('active');
+  if (n==='adressen') laadEnRender('adressen');
+  if (n==='historie') laadEnRender('historie');
+  if (n==='export') renderExport();
+  if (n==='scan') renderScanSelect();
+}
+
+async function laadEnRender(pagina) {
+  const hadCache = laadCache();
+  if (hadCache) {
+    renderScanSelect();
+    if (pagina === 'adressen') renderAdressen();
+    if (pagina === 'historie') renderHistorie();
+    toast('📦 Cache geladen — vernieuwen…');
+  } else {
+    toast('⏳ Data laden…');
+  }
+  try {
+    const [a, m] = await Promise.all([
+      apiCall('getAdressen'),
+      apiCall('getMetingen')
+    ]);
+    adressen = Array.isArray(a) ? a : [];
+    metingen = Array.isArray(m) ? m : [];
+    slaCache();
+    renderScanSelect();
+    if (pagina === 'adressen') renderAdressen();
+    if (pagina === 'historie') renderHistorie();
+    toast('✅ Data bijgewerkt!');
+  } catch(e) {
+    if (!hadCache) {
+      toast('⚠️ Kan data niet laden');
+      if (pagina === 'adressen') renderAdressen();
+      if (pagina === 'historie') renderHistorie();
+    } else {
+      toast('⚠️ Offline — cache gebruikt');
+    }
+  }
+}
+
+function renderScanSelect() {
+  const sel = document.getElementById('scanAdres');
+  const cur = sel.value;
+  sel.innerHTML = '<option value="">— Kies een adres —</option>';
+  adressen.forEach(a => {
+    const o = document.createElement('option');
+    o.value = a; o.textContent = a;
+    if (a === cur) o.selected = true;
+    sel.appendChild(o);
+  });
+}
+
+function kiesMeter(type, el) {
+  selMeter = type;
+  document.querySelectorAll('.mbtn').forEach(b => b.className = 'mbtn');
+  el.classList.add(type==='elektriciteit'?'se':type==='gas'?'sg':type==='water'?'sw':'sk');
+
+  const kastZone = document.getElementById('kastNrZone');
+  const standInput = document.getElementById('standInput');
+  const standLabel = document.getElementById('standLabel');
+  const aiBtn = document.getElementById('aiBtn');
+
+  if (type === 'kast') {
+    kastZone.style.display = 'block';
+    standInput.style.display = 'none';
+    standLabel.style.display = 'none';
+    aiBtn.innerHTML = '🤖 Lees kastnummer uit (optioneel)';
+  } else {
+    kastZone.style.display = 'none';
+    standInput.style.display = 'block';
+    standLabel.style.display = 'block';
+    aiBtn.innerHTML = '🤖 Lees meterstand uit';
+  }
+  checkKlaar();
+}
+
+function checkKlaar() {
+  document.getElementById('aiBtn').disabled = !(document.getElementById('scanAdres').value && selMeter && fotoB64);
+}
+
+function handleFoto(e) {
+  const file = e.target.files[0];
+  if (!file) return;
+  const reader = new FileReader();
+  reader.onload = ev => {
+    fotoB64 = ev.target.result.split(',')[1];
+    fotoMediaType = file.type || 'image/jpeg';
+    const img = document.getElementById('fotoPreview');
+    img.src = ev.target.result;
+    document.getElementById('fotoPlaceholder').style.display = 'none';
+    document.getElementById('fotoPreviewZone').style.display = 'block';
+    checkKlaar();
+  };
+  reader.readAsDataURL(file);
+}
+
+async function leesUit() {
+  const btn = document.getElementById('aiBtn');
+  btn.innerHTML = '<span class="spinner"></span>Bezig…';
+  btn.disabled = true;
+  const units = { elektriciteit:'kWh', gas:'m³', water:'m³', kast:'foto' };
+  try {
+    const fotoInput = document.getElementById('fotoInput');
+    const file = fotoInput.files[0];
+    const mediaType = file ? file.type || 'image/jpeg' : 'image/jpeg';
+
+    const resp = await fetch('https://meterscan-api.riklentjes74.workers.dev', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        model: 'claude-sonnet-4-20250514', max_tokens: 300,
+        messages: [{ role: 'user', content: [
+          { type: 'image', source: { type: 'base64', media_type: fotoMediaType, data: fotoB64 } },
+          { type: 'text', text: selMeter === 'kast'
+            ? `Dit is een foto van een elektriciteitskast. Lees het kastnummer of de identificatie af. Antwoord uitsluitend in dit JSON formaat: {"stand":"K12","uitleg":"kastnummer zichtbaar","betrouwbaar":true}`
+            : `Jij bent een expert in het aflezen van meters. Lees de meterstand af van deze ${selMeter}meter. Kijk goed naar alle cijfers. Negeer rode vakjes en decimalen achter de komma. Geef alleen de hele getallen. Als je het niet zeker weet, geef dan je beste schatting. Antwoord uitsluitend in dit JSON formaat: {"stand":"5910","uitleg":"toelichting","betrouwbaar":true}` }
+        ]}]
+      })
+    });
+
+    if (!resp.ok) {
+      const err = await resp.text();
+      toast('❌ Worker fout: ' + resp.status);
+      btn.innerHTML = '🤖 Lees meterstand uit';
+      btn.disabled = false;
+      return;
+    }
+
+    const data = await resp.json();
+    if (data.error) {
+      toast('❌ API fout: ' + data.error.message);
+      btn.innerHTML = '🤖 Lees meterstand uit';
+      btn.disabled = false;
+      return;
+    }
+
+    const raw = data.content?.[0]?.text || '';
+    const m = raw.match(/\{.*?\}/s);
+    const p = m ? JSON.parse(m[0]) : {};
+    const stand = stripDecimals(p.stand || '');
+    const betrouwbaar = p.betrouwbaar !== false;
+    document.getElementById('resVal').textContent = (stand || '?') + ' ' + units[selMeter];
+    document.getElementById('resNote').textContent = (betrouwbaar ? '✅ ' : '⚠️ Controleer goed! ') + (p.uitleg || 'Controleer handmatig.');
+    document.getElementById('resNote').style.color = betrouwbaar ? '#6b7280' : '#ff6b35';
+    document.getElementById('resBox').classList.add('show');
+    document.getElementById('standInput').value = stand;
+    if (stand) toast(betrouwbaar ? '✅ Uitgelezen: ' + stand : '⚠️ Onzeker: ' + stand + ' — controleer!');
+    else toast('⚠️ Maak een scherpere foto en probeer opnieuw');
+  } catch(e) {
+    toast('❌ Fout: ' + e.message);
+  }
+  btn.innerHTML = '🤖 Lees meterstand uit';
+  btn.disabled = false;
+}
+
+async function slaOp() {
+  const adres = document.getElementById('scanAdres').value;
+  const stand = document.getElementById('standInput').value.trim();
+  const kastNr = document.getElementById('kastNrInput').value.trim();
+  if (!adres) { toast('⚠️ Kies een adres'); return; }
+  if (!selMeter) { toast('⚠️ Kies metertype'); return; }
+  if (!stand && selMeter !== 'kast') { toast('⚠️ Vul meterstand in'); return; }
+  const units = { elektriciteit:'kWh', gas:'m³', water:'m³', kast:'foto' };
+  const notitie = document.getElementById('notitieInput').value.trim();
+  const eindStand = selMeter === 'kast' ? (kastNr || 'Kast') : stand;
+  const meting = { id: Date.now(), adres, type: selMeter, stand: eindStand, eenheid: units[selMeter],
+    datum: new Date().toLocaleDateString('nl-NL'),
+    tijd: new Date().toLocaleTimeString('nl-NL',{hour:'2-digit',minute:'2-digit'}),
+    notitie: notitie || '',
+    fotoData: fotoB64 || null };
+  try {
+    await apiCall('saveMeting', meting);
+    metingen.push(meting);
+    slaCache();
+    toast('✅ Opgeslagen!');
+  } catch(e) { toast('❌ Fout bij opslaan'); return; }
+  selMeter = null; fotoB64 = null; fotoMediaType = 'image/jpeg';
+  document.getElementById('standInput').value = '';
+  document.getElementById('kastNrInput').value = '';
+  document.getElementById('notitieInput').value = '';
+  document.getElementById('kastNrZone').style.display = 'none';
+  document.getElementById('standInput').style.display = 'block';
+  document.getElementById('standLabel').style.display = 'block';
+  document.getElementById('aiBtn').innerHTML = '🤖 Lees meterstand uit';
+  document.getElementById('resBox').classList.remove('show');
+  document.getElementById('fotoPreviewZone').style.display = 'none';
+  document.getElementById('fotoPlaceholder').style.display = 'block';
+  ['fotoInput','fotoUpload','fotoNieuw','fotoAnder'].forEach(id => {
+    const el = document.getElementById(id); if (el) el.value = '';
+  });
+  document.querySelectorAll('.mbtn').forEach(b => b.className = 'mbtn');
+  checkKlaar();
+}
+
+async function voegToe() {
+  const inp = document.getElementById('nieuwAdres');
+  const val = inp.value.trim();
+  if (!val) return;
+  if (adressen.includes(val)) { toast('⚠️ Adres bestaat al'); return; }
+  try {
+    await apiCall('saveAdres', { adres: val });
+    adressen.push(val);
+    slaCache();
+    inp.value = '';
+    renderAdressen(); renderScanSelect(); toast('✅ Toegevoegd');
+  } catch(e) { toast('❌ Fout bij opslaan'); }
+}
+
+async function verwijder(i) {
+  if (!confirm('Adres verwijderen?')) return;
+  try {
+    await apiCall('deleteAdres', { adres: adressen[i] });
+    adressen.splice(i,1);
+    slaCache();
+    renderAdressen(); renderScanSelect();
+  } catch(e) { toast('❌ Fout bij verwijderen'); }
+}
+
+async function verwijderMeting(id) {
+  if (!confirm('Meting verwijderen uit de historie?')) return;
+  try {
+    await apiCall('deleteMeting', { id });
+    metingen = metingen.filter(m => String(m.id) !== String(id));
+    slaCache();
+    renderHistorie();
+    toast('✅ Meting verwijderd');
+  } catch(e) { toast('❌ Fout bij verwijderen'); }
+}
+
+function renderAdressen() {
+  const el = document.getElementById('adresLijst');
+  if (!adressen.length) { el.innerHTML = '<div class="empty"><div class="ei">📍</div><p>Nog geen adressen</p></div>'; return; }
+  el.innerHTML = adressen.map((a,i) => {
+    const n = metingen.filter(m => m.adres===a).length;
+    return `<div class="addr-item"><div><div class="addr-name">${a}</div><div class="addr-cnt">${n} meting${n!==1?'en':''}</div></div><button class="btn-del" onclick="verwijder(${i})">🗑</button></div>`;
+  }).join('');
+}
+
+let cropImgEl, cropFrameEl, cropContainerEl;
+let cropX, cropY, cropW, cropH;
+let dragMode = null, dragStartX, dragStartY, dragOrigX, dragOrigY, dragOrigW, dragOrigH;
+let origImage = new Image();
+
+function startCrop() {
+  document.getElementById('cropOverlay').style.display = 'flex';
+  cropImgEl = document.getElementById('cropImg');
+  cropFrameEl = document.getElementById('cropFrame');
+  cropContainerEl = document.getElementById('cropContainer');
+
+  origImage = new Image();
+  origImage.onload = () => {
+    cropImgEl.src = origImage.src;
+    setTimeout(() => {
+      const r = cropImgEl.getBoundingClientRect();
+      const cr = cropContainerEl.getBoundingClientRect();
+      cropX = r.left - cr.left + r.width * 0.1;
+      cropY = r.top - cr.top + r.height * 0.1;
+      cropW = r.width * 0.8;
+      cropH = r.height * 0.8;
+      updateFrame();
+    }, 100);
+  };
+  origImage.src = 'data:' + fotoMediaType + ';base64,' + fotoB64;
+
+  cropFrameEl.addEventListener('touchstart', e => { e.preventDefault(); startDrag('move', e.touches[0]); }, {passive:false});
+  cropFrameEl.addEventListener('mousedown', e => startDrag('move', e));
+
+  ['tl','tr','bl','br'].forEach(h => {
+    const el = document.getElementById('ch-'+h);
+    el.addEventListener('touchstart', e => { e.preventDefault(); e.stopPropagation(); startDrag(h, e.touches[0]); }, {passive:false});
+    el.addEventListener('mousedown', e => { e.stopPropagation(); startDrag(h, e); });
+  });
+
+  document.addEventListener('touchmove', onDragMove, {passive:false});
+  document.addEventListener('touchend', onDragEnd);
+  document.addEventListener('mousemove', onDragMove);
+  document.addEventListener('mouseup', onDragEnd);
+}
+
+function startDrag(mode, e) {
+  dragMode = mode;
+  dragStartX = e.clientX; dragStartY = e.clientY;
+  dragOrigX = cropX; dragOrigY = cropY;
+  dragOrigW = cropW; dragOrigH = cropH;
+}
+
+function onDragMove(e) {
+  if (!dragMode) return;
+  e.preventDefault();
+  const t = e.touches ? e.touches[0] : e;
+  const dx = t.clientX - dragStartX;
+  const dy = t.clientY - dragStartY;
+  const r = cropImgEl.getBoundingClientRect();
+  const cr = cropContainerEl.getBoundingClientRect();
+  const minSize = 40;
+  const imgX = r.left - cr.left, imgY = r.top - cr.top;
+
+  if (dragMode === 'move') {
+    cropX = Math.max(imgX, Math.min(imgX + r.width - cropW, dragOrigX + dx));
+    cropY = Math.max(imgY, Math.min(imgY + r.height - cropH, dragOrigY + dy));
+  } else if (dragMode === 'br') {
+    cropW = Math.max(minSize, Math.min(imgX + r.width - cropX, dragOrigW + dx));
+    cropH = Math.max(minSize, Math.min(imgY + r.height - cropY, dragOrigH + dy));
+  } else if (dragMode === 'bl') {
+    const newW = Math.max(minSize, dragOrigW - dx);
+    cropX = dragOrigX + dragOrigW - newW;
+    cropW = newW;
+    cropH = Math.max(minSize, Math.min(imgY + r.height - cropY, dragOrigH + dy));
+  } else if (dragMode === 'tr') {
+    cropW = Math.max(minSize, Math.min(imgX + r.width - cropX, dragOrigW + dx));
+    const newH = Math.max(minSize, dragOrigH - dy);
+    cropY = dragOrigY + dragOrigH - newH;
+    cropH = newH;
+  } else if (dragMode === 'tl') {
+    const newW = Math.max(minSize, dragOrigW - dx);
+    cropX = dragOrigX + dragOrigW - newW; cropW = newW;
+    const newH = Math.max(minSize, dragOrigH - dy);
+    cropY = dragOrigY + dragOrigH - newH; cropH = newH;
+  }
+  updateFrame();
+}
+
+function onDragEnd() { dragMode = null; }
+
+function updateFrame() {
+  cropFrameEl.style.left = cropX + 'px';
+  cropFrameEl.style.top = cropY + 'px';
+  cropFrameEl.style.width = cropW + 'px';
+  cropFrameEl.style.height = cropH + 'px';
+
+  document.getElementById('cropTop').style.height = cropY + 'px';
+  document.getElementById('cropBottom').style.height = (cropContainerEl.clientHeight - cropY - cropH) + 'px';
+  document.getElementById('cropLeft').style.width = cropX + 'px';
+  document.getElementById('cropLeft').style.top = cropY + 'px';
+  document.getElementById('cropLeft').style.height = cropH + 'px';
+  document.getElementById('cropRight').style.left = (cropX + cropW) + 'px';
+  document.getElementById('cropRight').style.top = cropY + 'px';
+  document.getElementById('cropRight').style.height = cropH + 'px';
+}
+
+function bevestigCrop() {
+  const r = cropImgEl.getBoundingClientRect();
+  const cr = cropContainerEl.getBoundingClientRect();
+  const scaleX = origImage.naturalWidth / r.width;
+  const scaleY = origImage.naturalHeight / r.height;
+  const srcX = (cropX - (r.left - cr.left)) * scaleX;
+  const srcY = (cropY - (r.top - cr.top)) * scaleY;
+  const srcW = cropW * scaleX;
+  const srcH = cropH * scaleY;
+
+  const canvas = document.createElement('canvas');
+  canvas.width = srcW; canvas.height = srcH;
+  canvas.getContext('2d').drawImage(origImage, srcX, srcY, srcW, srcH, 0, 0, srcW, srcH);
+  const dataUrl = canvas.toDataURL('image/jpeg', 0.95);
+  fotoB64 = dataUrl.split(',')[1];
+  fotoMediaType = 'image/jpeg';
+  document.getElementById('fotoPreview').src = dataUrl;
+  annuleerCrop();
+  toast('✅ Bijgesneden!');
+}
+
+function roteerFoto() {
+  const img = new Image();
+  img.onload = () => {
+    const canvas = document.createElement('canvas');
+    canvas.width = img.height;
+    canvas.height = img.width;
+    const ctx = canvas.getContext('2d');
+    ctx.translate(canvas.width / 2, canvas.height / 2);
+    ctx.rotate(90 * Math.PI / 180);
+    ctx.drawImage(img, -img.width / 2, -img.height / 2);
+    const dataUrl = canvas.toDataURL('image/jpeg', 0.95);
+    fotoB64 = dataUrl.split(',')[1];
+    fotoMediaType = 'image/jpeg';
+    document.getElementById('fotoPreview').src = dataUrl;
+    toast('🔄 Foto gedraaid!');
+  };
+  img.src = 'data:' + fotoMediaType + ';base64,' + fotoB64;
+}
+
+function annuleerCrop() {
+  document.getElementById('cropOverlay').style.display = 'none';
+  document.removeEventListener('touchmove', onDragMove);
+  document.removeEventListener('touchend', onDragEnd);
+  document.removeEventListener('mousemove', onDragMove);
+  document.removeEventListener('mouseup', onDragEnd);
+}
+
+async function importeer(e) {
+  const file = e.target.files[0];
+  if (!file) return;
+  const msgEl = document.getElementById('impMsg');
+  msgEl.style.display = 'block';
+  msgEl.className = 'msg';
+  msgEl.textContent = '⏳ Bezig met inladen…';
+  const ext = file.name.split('.').pop().toLowerCase();
+  let gevonden = [];
+  try {
+    if (ext === 'txt') {
+      const text = await file.text();
+      gevonden = text.split('\n').map(l => l.trim()).filter(l => l.length > 3);
+    } else if (ext === 'csv') {
+      const text = await file.text();
+      const lines = text.split('\n').map(l => l.trim()).filter(Boolean);
+      const sep = lines[0].includes(';') ? ';' : ',';
+      const first = lines[0].toLowerCase();
+      const start = (first.includes('adres') || first.includes('straat')) ? 1 : 0;
+      let col = 0;
+      if (start > 0) { const h = lines[0].split(sep).map(x => x.toLowerCase().trim()); const ci = h.findIndex(x => x.includes('adres')||x.includes('straat')); if (ci>=0) col=ci; }
+      gevonden = lines.slice(start).map(l => l.split(sep)[col]?.replace(/^["']|["']$/g,'').trim()).filter(l => l && l.length > 3);
+    } else if (ext === 'xlsx') {
+      const buf = await file.arrayBuffer();
+      const wb = XLSX.read(buf, {type:'array'});
+      const ws = wb.Sheets[wb.SheetNames[0]];
+      const data = XLSX.utils.sheet_to_json(ws, {header:1});
+      let col = 0;
+      if (data.length > 0) { const h = data[0].map(x => String(x||'').toLowerCase()); const ci = h.findIndex(x => x.includes('adres')||x.includes('straat')); if (ci>=0) col=ci; }
+      const start = (data[0] && isNaN(data[0][col])) ? 1 : 0;
+      gevonden = data.slice(start).map(r => String(r[col]||'').trim()).filter(l => l.length > 3);
+    }
+    const nieuw = gevonden.filter(a => !adressen.includes(a));
+    const dubbel = gevonden.length - nieuw.length;
+    if (!nieuw.length) {
+      msgEl.textContent = `⚠️ Geen nieuwe adressen${dubbel>0?` (${dubbel} al aanwezig)`:'.'}.`;
+    } else {
+      msgEl.textContent = `⏳ ${nieuw.length} adressen opslaan…`;
+      await apiCall('saveAdressen', { adressen: nieuw });
+      adressen.push(...nieuw);
+      renderAdressen(); renderScanSelect();
+      msgEl.className = 'msg ok';
+      msgEl.textContent = `✅ ${nieuw.length} adres${nieuw.length!==1?'sen':''} geïmporteerd${dubbel>0?` (${dubbel} overgeslagen)`:'.'}.`;
+    }
+  } catch(err) { msgEl.className = 'msg err'; msgEl.textContent = '❌ Fout bij inladen.'; }
+  e.target.value = '';
+}
+
+function berekenVerbruik(adres, type, stand, datum) {
+  const vorigeMeting = [...metingen]
+    .filter(m => m.adres === adres && m.type === type && m.datum !== datum)
+    .sort((a, b) => new Date(b.datum.split('/').reverse().join('-')) - new Date(a.datum.split('/').reverse().join('-')))[0];
+  if (!vorigeMeting) return null;
+  const verbruik = parseInt(stand) - parseInt(vorigeMeting.stand);
+  return { vorige: vorigeMeting.stand, verbruik, datum: vorigeMeting.datum };
+}
+
+function renderHistorie() {
+  const el = document.getElementById('historieLijst');
+  if (!metingen.length) { el.innerHTML = '<div class="empty"><div class="ei">📋</div><p>Nog geen metingen</p></div>'; return; }
+
+  const perJaar = {};
+  [...metingen].reverse().forEach(m => {
+    const jaar = m.datum ? m.datum.split('/')[2] || m.datum.split('-')[0] : 'Onbekend';
+    if (!perJaar[jaar]) perJaar[jaar] = [];
+    perJaar[jaar].push(m);
+  });
+
+  let html = '';
+  Object.keys(perJaar).sort((a,b) => b-a).forEach(jaar => {
+    html += `<div style="font-size:12px;color:#6b7280;text-transform:uppercase;letter-spacing:1px;margin:14px 0 8px;">📅 ${jaar}</div>`;
+    perJaar[jaar].forEach(m => {
+      const tc = m.type==='elektriciteit'?'te':m.type==='gas'?'tg':m.type==='water'?'tw':'tk';
+      const ic = m.type==='elektriciteit'?'⚡':m.type==='gas'?'🔥':m.type==='water'?'💧':'🔌';
+      const vb = berekenVerbruik(m.adres, m.type, m.stand, m.datum);
+      const verbruikHtml = vb ? `<div style="font-size:12px;margin-top:6px;padding:6px 10px;background:#22263a;border-radius:6px;color:${vb.verbruik>=0?'#00e5a0':'#ff6b35'}">
+        ${vb.verbruik>=0?'➕':'➖'} ${Math.abs(vb.verbruik)} ${m.eenheid} verbruik t.o.v. ${vb.datum}
+      </div>` : '';
+      const notitieHtml = m.notitie ? `<div style="font-size:12px;margin-top:6px;padding:6px 10px;background:#22263a;border-radius:6px;color:#f59e0b;">📝 ${m.notitie}</div>` : '';
+      const foto = m.fotoData ? `<img src="data:image/jpeg;base64,${m.fotoData}" class="r-foto" onclick="this.style.maxHeight=this.style.maxHeight==='none'?'140px':'none'">` : '';
+      html += `<div class="r-card">
+        <div class="r-head">
+          <div class="r-addr">${m.adres}</div>
+          <div style="display:flex;align-items:center;gap:8px;">
+            <div class="r-date">${m.datum} ${m.tijd}</div>
+            <button onclick="verwijderMeting('${m.id}')" style="background:none;border:1px solid #3a1f1f;border-radius:7px;color:#ff6b35;padding:4px 9px;cursor:pointer;font-size:13px;line-height:1;" title="Verwijderen">🗑</button>
+          </div>
+        </div>
+        <span class="r-tag ${tc}">${ic} ${m.stand} ${m.eenheid}</span>
+        ${verbruikHtml}${notitieHtml}${foto}
+      </div>`;
+    });
+  });
+  el.innerHTML = html;
+}
+
+function renderExport() {
+  const today = new Date().toLocaleDateString('nl-NL');
+  document.getElementById('sA').textContent = adressen.length;
+  document.getElementById('sM').textContent = metingen.length;
+  document.getElementById('sV').textContent = metingen.filter(m => m.datum===today).length;
+}
+
+function exportExcel() {
+  if (!metingen.length) { toast('⚠️ Geen metingen'); return; }
+  const wb = XLSX.utils.book_new();
+  const d = [['Datum','Tijd','Adres','Metertype','Meterstand','Eenheid','Verbruik','Vorige stand','Foto']];
+  metingen.forEach(m => {
+    const vb = berekenVerbruik(m.adres, m.type, m.stand, m.datum);
+    d.push([m.datum, m.tijd, m.adres, m.type, m.stand, m.eenheid,
+      vb ? vb.verbruik : '', vb ? vb.vorige : '', m.fotoData ? 'Ja' : 'Nee']);
+  });
+  const ws1 = XLSX.utils.aoa_to_sheet(d);
+  ws1['!cols'] = [{wch:12},{wch:8},{wch:30},{wch:15},{wch:12},{wch:8},{wch:10},{wch:12},{wch:8}];
+  XLSX.utils.book_append_sheet(wb, ws1, 'Meterstanden');
+
+  const j = [['Jaar','Adres','Metertype','Beginstand','Eindstand','Verbruik','Eenheid']];
+  const jaren = [...new Set(metingen.map(m => m.datum?.split('/')[2] || m.datum?.split('-')[0]))].sort();
+  jaren.forEach(jaar => {
+    adressen.forEach(adres => {
+      ['elektriciteit','gas','water'].forEach(type => {
+        const jaarMetingen = metingen
+          .filter(m => m.adres === adres && m.type === type && (m.datum?.includes('/'+jaar) || m.datum?.startsWith(jaar)))
+          .sort((a,b) => new Date(a.datum.split('/').reverse().join('-')) - new Date(b.datum.split('/').reverse().join('-')));
+        if (jaarMetingen.length >= 2) {
+          const begin = jaarMetingen[0];
+          const eind = jaarMetingen[jaarMetingen.length-1];
+          const verbruik = parseInt(eind.stand) - parseInt(begin.stand);
+          j.push([jaar, adres, type, begin.stand, eind.stand, verbruik, eind.eenheid]);
+        }
+      });
+    });
+  });
+  if (j.length > 1) {
+    const ws2 = XLSX.utils.aoa_to_sheet(j);
+    ws2['!cols'] = [{wch:6},{wch:30},{wch:15},{wch:12},{wch:12},{wch:10},{wch:8}];
+    XLSX.utils.book_append_sheet(wb, ws2, 'Jaaroverzicht');
+  }
+  XLSX.writeFile(wb, `meterstanden_${new Date().toISOString().slice(0,10)}.xlsx`);
+  toast('✅ Excel gedownload!');
+}
+
+function exportCSV() {
+  if (!metingen.length) { toast('⚠️ Geen metingen'); return; }
+  const rows = [['Datum','Tijd','Adres','Metertype','Meterstand','Eenheid','Foto']];
+  metingen.forEach(m => rows.push([m.datum,m.tijd,`"${m.adres}"`,m.type,m.stand,m.eenheid,m.fotoData?'Ja':'Nee']));
+  const blob = new Blob(['﻿'+rows.map(r=>r.join(';')).join('\n')],{type:'text/csv;charset=utf-8'});
+  const a = document.createElement('a'); a.href = URL.createObjectURL(blob);
+  a.download = `meterstanden_${new Date().toISOString().slice(0,10)}.csv`; a.click();
+  toast('✅ CSV gedownload!');
+}
+
+async function exportZip() {
+  if (!metingen.length) { toast('⚠️ Geen metingen'); return; }
+  toast('⏳ ZIP wordt aangemaakt…');
+  const zip = new JSZip();
+  const fMap = {};
+  const d = [['Datum','Tijd','Adres','Metertype','Meterstand','Eenheid','Bestandsnaam foto']];
+  metingen.forEach((m,i) => {
+    let naam = '';
+    if (m.fotoData) { naam = `foto_${String(i+1).padStart(3,'0')}_${m.type}_${m.datum.replace(/\//g,'-')}.jpg`; fMap[naam] = m.fotoData; }
+    d.push([m.datum,m.tijd,m.adres,m.type,m.stand,m.eenheid,naam]);
+  });
+  const wb = XLSX.utils.book_new();
+  const ws = XLSX.utils.aoa_to_sheet(d);
+  ws['!cols'] = [{wch:12},{wch:8},{wch:30},{wch:15},{wch:12},{wch:8},{wch:30}];
+  XLSX.utils.book_append_sheet(wb, ws, 'Meterstanden');
+  zip.file('meterstanden.xlsx', XLSX.write(wb,{bookType:'xlsx',type:'array'}));
+  const ff = zip.folder('fotos');
+  Object.entries(fMap).forEach(([n,b]) => ff.file(n,b,{base64:true}));
+  const blob = await zip.generateAsync({type:'blob'});
+  const a = document.createElement('a'); a.href = URL.createObjectURL(blob);
+  a.download = `meterstanden_${new Date().toISOString().slice(0,10)}.zip`; a.click();
+  toast('✅ ZIP gedownload!');
+}
+
+function exportHTML() {
+  if (!metingen.length) { toast('⚠️ Geen metingen'); return; }
+  const rows = metingen.map((m,i) => {
+    const ic = m.type==='elektriciteit'?'⚡':m.type==='gas'?'🔥':'💧';
+    const foto = m.fotoData ? `<img src="data:image/jpeg;base64,${m.fotoData}" style="width:80px;height:60px;object-fit:cover;border-radius:5px;">` : '—';
+    return `<tr style="background:${i%2===0?'#fff':'#f9fafb'}"><td>${m.datum}</td><td>${m.tijd}</td><td style="font-weight:600">${m.adres}</td><td>${ic} ${m.type}</td><td style="font-family:monospace;font-weight:700">${m.stand} ${m.eenheid}</td><td>${foto}</td></tr>`;
+  }).join('');
+  const html = `<!DOCTYPE html><html lang="nl"><head><meta charset="UTF-8"><title>Meterstanden</title><style>body{font-family:Arial;padding:20px;max-width:900px;margin:0 auto}h1{margin-bottom:4px}p{color:#666;font-size:13px;margin-bottom:16px}table{width:100%;border-collapse:collapse;font-size:13px}th{background:#1a1a2e;color:white;padding:9px 12px;text-align:left}td{padding:8px 12px;border-bottom:1px solid #e5e7eb;vertical-align:middle}.btn{margin-bottom:16px;padding:10px 20px;background:#1a1a2e;color:white;border:none;border-radius:7px;cursor:pointer}@media print{.btn{display:none}}</style></head><body><h1>📋 Meterstanden Rapport</h1><p>Gegenereerd op ${new Date().toLocaleString('nl-NL')} · ${metingen.length} metingen · ${adressen.length} adressen</p><button class="btn" onclick="window.print()">🖨️ Afdrukken / PDF</button><table><thead><tr><th>Datum</th><th>Tijd</th><th>Adres</th><th>Type</th><th>Stand</th><th>Foto</th></tr></thead><tbody>${rows}</tbody></table></body></html>`;
+  window.open(URL.createObjectURL(new Blob([html],{type:'text/html;charset=utf-8'})),'_blank');
+  toast('✅ Rapport geopend!');
+}
+
+function toast(msg) {
+  const t = document.getElementById('toast');
+  t.textContent = msg; t.classList.add('show');
+  setTimeout(() => t.classList.remove('show'), 2500);
+}
+
+renderScanSelect();
+laadData();
+</script>
+</body>
+</html>
